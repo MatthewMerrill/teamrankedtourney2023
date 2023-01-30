@@ -1,5 +1,5 @@
 [workspace]
-members = ["newcular", "kled"]
+members = ["newcular", "minimax", "kled"]
 
 # [package]
 # name = "teamrankedtourney2023"

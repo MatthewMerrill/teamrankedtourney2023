@@ -14,9 +14,31 @@ pub enum PieceKind {
 }
 
 
-pub trait Board<Mov, Pla> {
-    fn get_player(&self) -> Pla;
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Player {
+    PlayerOne,
+    PlayerTwo,
+}
+
+impl Player {
+    pub fn other(&self) -> Player {
+        match self {
+            Self::PlayerOne => Self::PlayerTwo,
+            Self::PlayerTwo => Self::PlayerOne,
+        }
+    }
+    pub fn parity(&self) -> i8 {
+        match self {
+            Self::PlayerOne => 1,
+            Self::PlayerTwo => -1,
+        }
+    }
+}
+
+
+pub trait Board<Mov> {
+    fn get_player(&self) -> Player;
     fn get_moves(&self) -> Vec<Mov>;
-    fn get_winner(&self) -> Option<Pla>;
+    fn get_winner(&self) -> Option<Player>;
     fn do_move(&mut self, mov: &Mov) -> Result<(), MoveError>;
 }

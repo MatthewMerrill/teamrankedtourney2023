@@ -3,12 +3,12 @@ use std::fmt::{Debug, Display};
 use crate::board::*;
 
 #[derive(Clone, Copy, Eq, Debug, PartialEq)]
-pub struct SimpleMov {
+pub struct SimpleMove {
     from_rc: (u8, u8),
     dest_rc: (u8, u8),
 }
 
-impl Display for SimpleMov {
+impl Display for SimpleMove {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -21,31 +21,10 @@ impl Display for SimpleMov {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum SimplePla {
-    PlayerOne,
-    PlayerTwo,
-}
-
-impl SimplePla {
-    fn other(&self) -> SimplePla {
-        match self {
-            Self::PlayerOne => Self::PlayerTwo,
-            Self::PlayerTwo => Self::PlayerOne,
-        }
-    }
-    fn parity(&self) -> i8 {
-        match self {
-            Self::PlayerOne => 1,
-            Self::PlayerTwo => -1,
-        }
-    }
-}
-
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub struct SimpleBoard {
-    current_player: SimplePla,
-    rows: [[Option<(SimplePla, PieceKind)>; 7]; 9],
+    current_player: Player,
+    pub rows: [[Option<(Player, PieceKind)>; 7]; 9],
 }
 
 impl Display for SimpleBoard {
@@ -60,16 +39,16 @@ impl Display for SimpleBoard {
                 .enumerate()
                     .map(|(col_idx, val)| {
                         let piece_str = match val {
-                        Some((SimplePla::PlayerOne, PieceKind::B)) => " B ",
-                        Some((SimplePla::PlayerOne, PieceKind::K)) => " K ",
-                        Some((SimplePla::PlayerOne, PieceKind::N)) => " N ",
-                        Some((SimplePla::PlayerOne, PieceKind::R)) => " R ",
-                        Some((SimplePla::PlayerOne, PieceKind::P)) => " P ",
-                        Some((SimplePla::PlayerTwo, PieceKind::B)) => " b ",
-                        Some((SimplePla::PlayerTwo, PieceKind::K)) => " k ",
-                        Some((SimplePla::PlayerTwo, PieceKind::N)) => " n ",
-                        Some((SimplePla::PlayerTwo, PieceKind::R)) => " r ",
-                        Some((SimplePla::PlayerTwo, PieceKind::P)) => " p ",
+                        Some((Player::PlayerOne, PieceKind::B)) => " B ",
+                        Some((Player::PlayerOne, PieceKind::K)) => " K ",
+                        Some((Player::PlayerOne, PieceKind::N)) => " N ",
+                        Some((Player::PlayerOne, PieceKind::R)) => " R ",
+                        Some((Player::PlayerOne, PieceKind::P)) => " P ",
+                        Some((Player::PlayerTwo, PieceKind::B)) => " b ",
+                        Some((Player::PlayerTwo, PieceKind::K)) => " k ",
+                        Some((Player::PlayerTwo, PieceKind::N)) => " n ",
+                        Some((Player::PlayerTwo, PieceKind::R)) => " r ",
+                        Some((Player::PlayerTwo, PieceKind::P)) => " p ",
                         None => " - ",
                         };
                         match (row_idx + col_idx) % 2 {
@@ -88,7 +67,7 @@ impl Display for SimpleBoard {
 impl SimpleBoard {
     pub fn init() -> Self {
         SimpleBoard {
-            current_player: SimplePla::PlayerOne,
+            current_player: Player::PlayerOne,
             rows: [
                 ['-', 'N', 'R', 'K', 'R', 'N', '-'],
                 ['-', '-', '-', 'B', '-', '-', '-'],
@@ -102,16 +81,16 @@ impl SimpleBoard {
             ]
             .map(|row| {
                 row.map(|ch| match ch {
-                    'B' => Some((SimplePla::PlayerOne, PieceKind::B)),
-                    'K' => Some((SimplePla::PlayerOne, PieceKind::K)),
-                    'N' => Some((SimplePla::PlayerOne, PieceKind::N)),
-                    'R' => Some((SimplePla::PlayerOne, PieceKind::R)),
-                    'P' => Some((SimplePla::PlayerOne, PieceKind::P)),
-                    'b' => Some((SimplePla::PlayerTwo, PieceKind::B)),
-                    'k' => Some((SimplePla::PlayerTwo, PieceKind::K)),
-                    'n' => Some((SimplePla::PlayerTwo, PieceKind::N)),
-                    'r' => Some((SimplePla::PlayerTwo, PieceKind::R)),
-                    'p' => Some((SimplePla::PlayerTwo, PieceKind::P)),
+                    'B' => Some((Player::PlayerOne, PieceKind::B)),
+                    'K' => Some((Player::PlayerOne, PieceKind::K)),
+                    'N' => Some((Player::PlayerOne, PieceKind::N)),
+                    'R' => Some((Player::PlayerOne, PieceKind::R)),
+                    'P' => Some((Player::PlayerOne, PieceKind::P)),
+                    'b' => Some((Player::PlayerTwo, PieceKind::B)),
+                    'k' => Some((Player::PlayerTwo, PieceKind::K)),
+                    'n' => Some((Player::PlayerTwo, PieceKind::N)),
+                    'r' => Some((Player::PlayerTwo, PieceKind::R)),
+                    'p' => Some((Player::PlayerTwo, PieceKind::P)),
                     _ => None,
                 })
             }),
@@ -120,7 +99,7 @@ impl SimpleBoard {
 
     fn raycast_moves(
         &self,
-        player: &SimplePla,
+        player: &Player,
         pos: (u8, u8),
         del: (i8, i8),
     ) -> (Vec<(u8, u8)>, Option<(u8, u8)>) {
@@ -140,7 +119,7 @@ impl SimpleBoard {
         (ret, None)
     }
 
-    fn get_bishop_moves(&self, player: &SimplePla, pos: (u8, u8)) -> Vec<(u8, u8)> {
+    fn get_bishop_moves(&self, player: &Player, pos: (u8, u8)) -> Vec<(u8, u8)> {
         let mut ret = vec![pos];
         ret.extend(self.raycast_moves(player, pos, (player.parity() * 1, 1)).0);
         ret.extend(self.raycast_moves(player, pos, (player.parity() * 1, -1)).0);
@@ -156,7 +135,7 @@ impl SimpleBoard {
         ret
     }
 
-    fn get_king_moves(&self, player: &SimplePla, pos: (u8, u8)) -> Vec<(u8, u8)> {
+    fn get_king_moves(&self, player: &Player, pos: (u8, u8)) -> Vec<(u8, u8)> {
         vec![
             pos,
             ((pos.0 as i8 + player.parity() * 1) as u8, pos.1),
@@ -169,7 +148,7 @@ impl SimpleBoard {
         .collect()
     }
 
-    fn get_pawn_moves(&self, player: &SimplePla, pos: (u8, u8)) -> Vec<(u8, u8)> {
+    fn get_pawn_moves(&self, player: &Player, pos: (u8, u8)) -> Vec<(u8, u8)> {
         let mut ret = vec![pos];
         if let Ok(nxt) = check_pos((((pos.0 as i8) + player.parity()) as u8, pos.1)) {
             if self.rows[nxt.0 as usize][nxt.1 as usize].is_none() {
@@ -194,7 +173,7 @@ impl SimpleBoard {
         ret
     }
 
-    fn get_rook_moves(&self, player: &SimplePla, pos: (u8, u8)) -> Vec<(u8, u8)> {
+    fn get_rook_moves(&self, player: &Player, pos: (u8, u8)) -> Vec<(u8, u8)> {
         let mut ret = vec![pos];
         ret.extend(self.raycast_moves(player, pos, (player.parity() * 1, 0)).0);
         ret.extend(self.raycast_moves(player, pos, (0, 1)).0);
@@ -205,7 +184,7 @@ impl SimpleBoard {
         ret
     }
 
-    fn get_knight_moves(&self, player: &SimplePla, pos: (u8, u8)) -> Vec<(u8, u8)> {
+    fn get_knight_moves(&self, player: &Player, pos: (u8, u8)) -> Vec<(u8, u8)> {
         let fwd: Vec<(u8, u8)> = [(2, 1), (2, -1), (1, 2), (1, -2)]
             .iter()
             .map(|del| {
@@ -250,12 +229,12 @@ fn check_pos(pos: (u8, u8)) -> Result<(u8, u8), MoveError> {
     Ok(pos)
 }
 
-impl Board<SimpleMov, SimplePla> for SimpleBoard {
-    fn get_player(&self) -> SimplePla {
+impl Board<SimpleMove> for SimpleBoard {
+    fn get_player(&self) -> Player {
         self.current_player
     }
 
-    fn get_moves(&self) -> Vec<SimpleMov> {
+    fn get_moves(&self) -> Vec<SimpleMove> {
         self.rows
             .iter()
             .flatten()
@@ -275,7 +254,7 @@ impl Board<SimpleMov, SimplePla> for SimpleBoard {
                     // _ => vec![],
                 }
                 .iter()
-                .map(|&nxt| SimpleMov {
+                .map(|&nxt| SimpleMove {
                     from_rc: pos,
                     dest_rc: nxt,
                 })
@@ -283,21 +262,21 @@ impl Board<SimpleMov, SimplePla> for SimpleBoard {
                 _ => vec![],
             })
             .flatten()
-            .collect::<Vec<SimpleMov>>()
+            .collect::<Vec<SimpleMove>>()
     }
 
-    fn get_winner(&self) -> Option<SimplePla> {
+    fn get_winner(&self) -> Option<Player> {
         if !self.rows.iter().flatten().any(|piece| match piece {
-            Some((SimplePla::PlayerOne, PieceKind::K)) => true,
+            Some((Player::PlayerOne, PieceKind::K)) => true,
             _ => false,
         }) {
-            return Some(SimplePla::PlayerTwo);
+            return Some(Player::PlayerTwo);
         }
         if !self.rows.iter().flatten().any(|piece| match piece {
-            Some((SimplePla::PlayerTwo, PieceKind::K)) => true,
+            Some((Player::PlayerTwo, PieceKind::K)) => true,
             _ => false,
         }) {
-            return Some(SimplePla::PlayerOne);
+            return Some(Player::PlayerOne);
         }
         if self.get_moves().is_empty() {
             return Some(self.current_player.other());
@@ -305,7 +284,7 @@ impl Board<SimpleMov, SimplePla> for SimpleBoard {
         None
     }
 
-    fn do_move(&mut self, mov: &SimpleMov) -> Result<(), MoveError> {
+    fn do_move(&mut self, mov: &SimpleMove) -> Result<(), MoveError> {
         check_pos(mov.from_rc)?;
         check_pos(mov.dest_rc)?;
         if mov.from_rc == mov.dest_rc {

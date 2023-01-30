@@ -15,6 +15,14 @@ dependencies = [
 name = "kled"
 version = "0.1.0"
 dependencies = [
+ "minimax",
+ "newcular",
+]
+
+[[package]]
+name = "minimax"
+version = "0.1.0"
+dependencies = [
  "newcular",
 ]
 
