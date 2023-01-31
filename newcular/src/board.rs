@@ -40,5 +40,5 @@ pub trait Board<Mov> {
     fn get_player(&self) -> Player;
     fn get_moves(&self) -> Vec<Mov>;
     fn get_winner(&self) -> Option<Player>;
-    fn do_move(&mut self, mov: &Mov) -> Result<(), MoveError>;
+    fn do_move(&mut self, mov: &Mov);
 }
