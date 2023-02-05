@@ -40,7 +40,13 @@ where
             loop {
                 match ab.choose_best(&board, depth) {
                     // todo: short-circuit for win/loss?
-                    Some(x) => tx.send(x).unwrap(),
+                    Some(x) => {
+                        tx.send(x).unwrap();
+                        match x {
+                            (_, EvalResult::Evaluate(_)) => {},
+                            _ => { println!("Got {depth} plies deep!"); break; },
+                        }
+                    },
                     None => { println!("Got {depth} plies deep!"); break; },
                 };
                 depth += 1;
