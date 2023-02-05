@@ -33,6 +33,12 @@ impl Player {
             Self::PlayerTwo => -1,
         }
     }
+    pub fn ord(&self) -> i8 {
+        match self {
+            Self::PlayerOne => 1,
+            Self::PlayerTwo => 2,
+        }
+    }
 }
 
 
