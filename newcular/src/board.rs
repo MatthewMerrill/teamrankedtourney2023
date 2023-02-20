@@ -35,10 +35,13 @@ impl Player {
     }
 }
 
+pub trait Mov {
+    fn invert(&self) -> Self;
+}
 
-pub trait Board<Mov> {
+pub trait Board<M: Mov> {
     fn get_player(&self) -> Player;
-    fn get_moves(&self) -> Vec<Mov>;
+    fn get_moves(&self) -> Vec<M>;
     fn get_winner(&self) -> Option<Player>;
-    fn do_move(&mut self, mov: &Mov) -> Result<(), MoveError>;
+    fn do_move(&mut self, mov: &M) -> Result<(), MoveError>;
 }

@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 minimax = { path = "../minimax" }
 newcular = { path = "../newcular" }
+board-em-api = "0.1.0"

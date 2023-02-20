@@ -6,6 +6,8 @@ use newcular::{
     simple::{SimpleBoard, SimpleMove},
 };
 
+// mod termdisplay;
+
 fn piece_rank(kind: &PieceKind) -> i32 {
     match kind {
         B => 3,

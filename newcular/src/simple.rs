@@ -8,6 +8,15 @@ pub struct SimpleMove {
     dest_rc: (u8, u8),
 }
 
+impl Mov for SimpleMove {
+    fn invert(&self) -> Self {
+        SimpleMove {
+            from_rc: (9 - self.from_rc.0, self.from_rc.1),
+            dest_rc: (9 - self.dest_rc.0, self.dest_rc.1),
+        }
+    }
+}
+
 impl Display for SimpleMove {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -36,25 +45,27 @@ impl Display for SimpleBoard {
                 "{}. {}",
                 9 - row_idx,
                 row.iter()
-                .enumerate()
+                    .enumerate()
                     .map(|(col_idx, val)| {
                         let piece_str = match val {
-                        Some((Player::PlayerOne, PieceKind::B)) => " B ",
-                        Some((Player::PlayerOne, PieceKind::K)) => " K ",
-                        Some((Player::PlayerOne, PieceKind::N)) => " N ",
-                        Some((Player::PlayerOne, PieceKind::R)) => " R ",
-                        Some((Player::PlayerOne, PieceKind::P)) => " P ",
-                        Some((Player::PlayerTwo, PieceKind::B)) => " b ",
-                        Some((Player::PlayerTwo, PieceKind::K)) => " k ",
-                        Some((Player::PlayerTwo, PieceKind::N)) => " n ",
-                        Some((Player::PlayerTwo, PieceKind::R)) => " r ",
-                        Some((Player::PlayerTwo, PieceKind::P)) => " p ",
-                        None => " - ",
+                            Some((Player::PlayerOne, PieceKind::B)) => " B ",
+                            Some((Player::PlayerOne, PieceKind::K)) => " K ",
+                            Some((Player::PlayerOne, PieceKind::N)) => " N ",
+                            Some((Player::PlayerOne, PieceKind::R)) => " R ",
+                            Some((Player::PlayerOne, PieceKind::P)) => " P ",
+                            Some((Player::PlayerTwo, PieceKind::B)) => " b ",
+                            Some((Player::PlayerTwo, PieceKind::K)) => " k ",
+                            Some((Player::PlayerTwo, PieceKind::N)) => " n ",
+                            Some((Player::PlayerTwo, PieceKind::R)) => " r ",
+                            Some((Player::PlayerTwo, PieceKind::P)) => " p ",
+                            None => " - ",
                         };
                         match (row_idx + col_idx) % 2 {
                             0 => ansi_term::Color::Black.on(ansi_term::Color::Cyan),
                             _ => ansi_term::Color::Black.on(ansi_term::Color::White),
-                        }.paint(piece_str).to_string()
+                        }
+                        .paint(piece_str)
+                        .to_string()
                     })
                     .collect::<Vec<String>>()
                     .join("")
@@ -136,16 +147,21 @@ impl SimpleBoard {
     }
 
     fn get_king_moves(&self, player: &Player, pos: (u8, u8)) -> Vec<(u8, u8)> {
-        vec![
-            pos,
+        let mut ret: Vec<(u8, u8)> = vec![
             ((pos.0 as i8 + player.parity() * 1) as u8, pos.1),
             ((pos.0 as i8 + player.parity() * 1) as u8, pos.1 - 1),
             ((pos.0 as i8 + player.parity() * 1) as u8, pos.1 + 1),
         ]
         .iter()
         .filter(|&nxt| check_pos(*nxt).is_ok())
+        .filter(|nxt| match self.rows[nxt.0 as usize][nxt.1 as usize] {
+            Some((other_player, _)) if other_player == *player => false,
+            _ => true,
+        })
         .map(|&a| a)
-        .collect()
+        .collect();
+        ret.insert(0, pos);
+        ret
     }
 
     fn get_pawn_moves(&self, player: &Player, pos: (u8, u8)) -> Vec<(u8, u8)> {
@@ -289,8 +305,16 @@ impl Board<SimpleMove> for SimpleBoard {
         check_pos(mov.dest_rc)?;
         if mov.from_rc == mov.dest_rc {
             // Explode!!
-            for clear_row in [(mov.from_rc.0 as i8 - 1) as u8, mov.from_rc.0, mov.from_rc.0 + 1] {
-                for clear_col in [(mov.from_rc.1 as i8 - 1) as u8, mov.from_rc.1, mov.from_rc.1 + 1] {
+            for clear_row in [
+                (mov.from_rc.0 as i8 - 1) as u8,
+                mov.from_rc.0,
+                mov.from_rc.0 + 1,
+            ] {
+                for clear_col in [
+                    (mov.from_rc.1 as i8 - 1) as u8,
+                    mov.from_rc.1,
+                    mov.from_rc.1 + 1,
+                ] {
                     if check_pos((clear_row, clear_col)).is_ok() {
                         self.rows[clear_row as usize][clear_col as usize] = None;
                     }
@@ -319,10 +343,10 @@ mod test {
                 .map(|m| m.to_string())
                 .collect::<Vec<String>>(),
             vec![
-                "B1B1", "B1C3", "B1A3", "C1C1", "C1C2", "C1C3", "D1D1", "D1D2", "D1C2", "D1E2",
-                "E1E1", "E1E2", "E1E3", "F1F1", "F1G3", "F1E3", "D2D2", "D2E3", "D2F4", "D2G5",
-                "D2C3", "D2B4", "D2A5", "D3D3", "A4A4", "A4A5", "C4C4", "C4C5", "E4E4", "E4E5",
-                "G4G4", "G4G5",
+                "B1B1", "B1C3", "B1A3", "C1C1", "C1C2", "C1C3", "D1D1", "D1C2", "D1E2", "E1E1",
+                "E1E2", "E1E3", "F1F1", "F1G3", "F1E3", "D2D2", "D2E3", "D2F4", "D2G5", "D2C3",
+                "D2B4", "D2A5", "D3D3", "A4A4", "A4A5", "C4C4", "C4C5", "E4E4", "E4E5", "G4G4",
+                "G4G5",
             ]
         )
     }
