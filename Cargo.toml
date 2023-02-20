@@ -1,5 +1,5 @@
 [workspace]
-members = ["newcular", "minimax", "kled"]
+members = ["newcular", "minimax", "kled", "boardem-webhook"]
 
 # [package]
 # name = "teamrankedtourney2023"

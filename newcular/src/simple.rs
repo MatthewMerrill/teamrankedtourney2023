@@ -2,6 +2,16 @@ use std::fmt::{Debug, Display};
 
 use crate::board::*;
 
+fn piece_rank(kind: &PieceKind) -> i32 {
+    match kind {
+        PieceKind::B => 5,
+        PieceKind::K => 50,
+        PieceKind::N => 3,
+        PieceKind::R => 5,
+        PieceKind::P => 1,
+    }
+}
+
 #[derive(Clone, Copy, Eq, Debug, PartialEq)]
 pub struct SimpleMove {
     from_rc: (u8, u8),
@@ -34,11 +44,11 @@ impl Display for SimpleMove {
 pub struct SimpleBoard {
     current_player: Player,
     pub rows: [[Option<(Player, PieceKind)>; 7]; 9],
+    pub eval: i32,
 }
 
 impl Display for SimpleBoard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut drawn = String::new();
         for (row_idx, row) in self.rows.iter().rev().enumerate() {
             writeln!(
                 f,
@@ -48,30 +58,32 @@ impl Display for SimpleBoard {
                     .enumerate()
                     .map(|(col_idx, val)| {
                         let piece_str = match val {
-                            Some((Player::PlayerOne, PieceKind::B)) => " B ",
-                            Some((Player::PlayerOne, PieceKind::K)) => " K ",
-                            Some((Player::PlayerOne, PieceKind::N)) => " N ",
-                            Some((Player::PlayerOne, PieceKind::R)) => " R ",
-                            Some((Player::PlayerOne, PieceKind::P)) => " P ",
-                            Some((Player::PlayerTwo, PieceKind::B)) => " b ",
-                            Some((Player::PlayerTwo, PieceKind::K)) => " k ",
-                            Some((Player::PlayerTwo, PieceKind::N)) => " n ",
-                            Some((Player::PlayerTwo, PieceKind::R)) => " r ",
-                            Some((Player::PlayerTwo, PieceKind::P)) => " p ",
-                            None => " - ",
+                                Some((Player::PlayerOne, PieceKind::B)) => " B ",
+                                Some((Player::PlayerOne, PieceKind::K)) => " K ",
+                                Some((Player::PlayerOne, PieceKind::N)) => " N ",
+                                Some((Player::PlayerOne, PieceKind::R)) => " R ",
+                                Some((Player::PlayerOne, PieceKind::P)) => " P ",
+                                Some((Player::PlayerTwo, PieceKind::B)) => " ♗ ",
+                                Some((Player::PlayerTwo, PieceKind::K)) => " ♔ ",
+                                Some((Player::PlayerTwo, PieceKind::N)) => " ♘ ",
+                                Some((Player::PlayerTwo, PieceKind::R)) => " ♖ ",
+                                Some((Player::PlayerTwo, PieceKind::P)) => " ♙ ",
+                                None => "   ",
                         };
                         match (row_idx + col_idx) % 2 {
-                            0 => ansi_term::Color::Black.on(ansi_term::Color::Cyan),
-                            _ => ansi_term::Color::Black.on(ansi_term::Color::White),
+                            0 => ansi_term::Color::White.on(ansi_term::Color::RGB(64, 64, 64)).bold(),
+                            _ => ansi_term::Color::White.on(ansi_term::Color::RGB(32, 32, 32)).bold(),
                         }
+                        
                         .paint(piece_str)
+                        
                         .to_string()
                     })
                     .collect::<Vec<String>>()
                     .join("")
             )?;
         }
-        writeln!(f, "{}\n    A  B  C  D  E  F  G ", drawn)
+        writeln!(f, "\n    A  B  C  D  E  F  G ")
     }
 }
 
@@ -105,6 +117,7 @@ impl SimpleBoard {
                     _ => None,
                 })
             }),
+            eval: 0,
         }
     }
 
@@ -147,20 +160,24 @@ impl SimpleBoard {
     }
 
     fn get_king_moves(&self, player: &Player, pos: (u8, u8)) -> Vec<(u8, u8)> {
-        let mut ret: Vec<(u8, u8)> = vec![
+        let fwd: Vec<(u8, u8)> = [
             ((pos.0 as i8 + player.parity() * 1) as u8, pos.1),
-            ((pos.0 as i8 + player.parity() * 1) as u8, pos.1 - 1),
+            (
+                (pos.0 as i8 + player.parity() * 1) as u8,
+                ((pos.1 as i8) - 1) as u8,
+            ),
             ((pos.0 as i8 + player.parity() * 1) as u8, pos.1 + 1),
         ]
         .iter()
         .filter(|&nxt| check_pos(*nxt).is_ok())
-        .filter(|nxt| match self.rows[nxt.0 as usize][nxt.1 as usize] {
-            Some((other_player, _)) if other_player == *player => false,
+        .filter(|&nxt| match self.rows[nxt.0 as usize][nxt.1 as usize] {
+            Some((other_player, _)) if *player == other_player => false,
             _ => true,
         })
         .map(|&a| a)
         .collect();
-        ret.insert(0, pos);
+        let mut ret = vec![pos];
+        ret.extend(fwd);
         ret
     }
 
@@ -282,6 +299,13 @@ impl Board<SimpleMove> for SimpleBoard {
     }
 
     fn get_winner(&self) -> Option<Player> {
+        if self.rows.iter().flatten().all(|piece| match piece {
+            Some((_, PieceKind::K)) => false,
+            _ => true,
+        }) {
+            return Some(self.current_player);
+        }
+
         if !self.rows.iter().flatten().any(|piece| match piece {
             Some((Player::PlayerOne, PieceKind::K)) => true,
             _ => false,
@@ -300,9 +324,9 @@ impl Board<SimpleMove> for SimpleBoard {
         None
     }
 
-    fn do_move(&mut self, mov: &SimpleMove) -> Result<(), MoveError> {
-        check_pos(mov.from_rc)?;
-        check_pos(mov.dest_rc)?;
+    fn do_move(&mut self, mov: &SimpleMove) {
+        check_pos(mov.from_rc).unwrap();
+        check_pos(mov.dest_rc).unwrap();
         if mov.from_rc == mov.dest_rc {
             // Explode!!
             for clear_row in [
@@ -316,17 +340,24 @@ impl Board<SimpleMove> for SimpleBoard {
                     mov.from_rc.1 + 1,
                 ] {
                     if check_pos((clear_row, clear_col)).is_ok() {
+                        if let Some((old_player, old_kind)) = self.rows[clear_row as usize][clear_col as usize] {
+                            self.eval -= (old_player.parity() as i32) * (piece_rank(&old_kind) as i32);
+                        }
                         self.rows[clear_row as usize][clear_col as usize] = None;
                     }
                 }
             }
+            self.current_player = self.current_player.other();
+            return;
         }
         // don't validate. w/e.
+        if let Some((old_player, old_kind)) = self.rows[mov.dest_rc.0 as usize][mov.dest_rc.1 as usize] {
+            self.eval -= (old_player.parity() as i32) * (piece_rank(&old_kind) as i32);
+        } 
         self.rows[mov.dest_rc.0 as usize][mov.dest_rc.1 as usize] =
             self.rows[mov.from_rc.0 as usize][mov.from_rc.1 as usize];
         self.rows[mov.from_rc.0 as usize][mov.from_rc.1 as usize] = None;
         self.current_player = self.current_player.other();
-        Ok(())
     }
 }
 
