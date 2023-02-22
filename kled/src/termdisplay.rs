@@ -2,6 +2,8 @@ use std::fmt::Display;
 
 use newcular::board::Board;
 use newcular::board::Mov;
+use newcular::board::PieceKind;
+use newcular::board::Player;
 use newcular::simple::SimpleBoard;
 use newcular::simple::SimpleMove;
 
@@ -17,102 +19,93 @@ const spaces: &str =
 //   "* * *  * **** *************    *** **********"
 // };
 
+const NEWCULAR: &str = "        /|    / /                                                           
+       //|   / /  ___                   ___              //  ___      __    
+      // |  / / //___) ) //  / /  / / //   ) ) //   / / // //   ) ) //  ) ) 
+     //  | / / //       //  / /  / / //       //   / / // //   / / //       
+    //   |/ / ((____   ((__( (__/ / ((____   ((___( ( // ((___( ( //        
+
+               //   ) )                                    
+              //        / __      ___      ___      ___    
+             //        //   ) ) //___) ) ((   ) ) ((   ) ) 
+            //        //   / / //         \\ \\      \\ \\     
+           ((____/ / //   / / ((____   //___) ) //___) )        
+";
+
 // mod termdisplay;s {
 
 // static term_display: TermDisplay;
 
-struct TermDisplay<M: Mov, B: Board<M>> {
-    prev_state: B,
-    cur_state: B,
-    move_history: Vec<M>,
+use ansi_term;
+
+pub struct TermDisplay<M: Mov, B: Board<M>> {
+    pub prev_state: B,
+    pub cur_state: B,
+    pub move_history: Vec<M>,
 }
 
-impl TermDisplay<SimpleMove, SimpleBoard> {
-    fn updateChar(r: u8, c: u8, hlRow: u32, hlCol: u32, state: SimpleBoard) {
+impl<M: Mov, B: Board<M>> TermDisplay<M, B> {
+    fn print_char(&self, r: u8, c: u8, hlRow: u8, hlCol: u8, state: &B) {
         let bit = 1u64 << (r * 7 + c);
         let basebg = match (1u8 & (r ^ c)) {
-            0 => 230u8,
-            _ => 252u8,
+            _ if r == hlRow && (c - hlCol) * (c - hlCol) <= 0 => ansi_term::Color::Fixed(109),
+            0 => ansi_term::Color::Fixed(230u8),
+            _ => ansi_term::Color::Fixed(252u8),
         };
-        if (r  == hlRow && (c - hlCol) * (c - hlCol) <= 0) {
-            basebg = 109;
-        }
-        textbg_256(basebg);
-        if (state.piece_mask & bit) {
-            if (state.player_one_mask & (1ULL << (r * 7 + c))) {
-                textfg_256(88);
-            } else {
-                textfg_256(18);
-            }
-            if (state.teams & bit) {
-                printf("_");
-            } else {
-                printf(".");
-            }
-            textbg_256(if (c == hlCol && (r - hlRow) * (r - hlRow) <= 1) {
-                109
-            } else {
-                basebg
-            });
-            if (state.king_mask & bit) {
-                printf("K");
-            } else if (state.knight_mask & bit) {
-                printf("N");
-            } else if (state.bishop_mask & bit) {
-                printf("B");
-            } else if (state.rook_mask & bit) {
-                printf("R");
-            } else if (state.pawn_mask & bit) {
-                printf("P");
-            }
-            textbg_256(basebg);
-            if (state.player_one_mask & bit) {
-                printf("_");
-            } else {
-                printf(".");
-            }
-        } else if (c == hlCol) {
-            printf(" ");
-            textbg_256(if (c == hlCol && (r - hlRow) * (r - hlRow) <= 1) {
-                109
-            } else {
-                basebg
-            });
-            printf(" ");
-            textbg_256(basebg);
-            printf(" ");
+        if let Some((player, piece_kind)) = state.get_piece(r, c) {
+            let ch = match piece_kind {
+                PieceKind::B => "B",
+                PieceKind::K => "K",
+                PieceKind::N => "N",
+                PieceKind::P => "P",
+                PieceKind::R => "R",
+            };
+            let (fg, plch) = match player {
+                Player::PlayerOne => (ansi_term::Color::Fixed(88), "_"),
+                Player::PlayerTwo => (ansi_term::Color::Fixed(18), "."),
+            };
+            print!(
+                "{}",
+                ansi_term::Style::new()
+                    .fg(fg)
+                    .on(basebg)
+                    .paint(format!("{}{}{}", plch, ch, plch))
+            );
+        // } else if (c == hlCol) {
+        //     print!(
+        //         "{}{}{}",
+        //         basebg.paint(" "),
+        //         ansi_term::Color::Fixed(109).paint(" "),
+        //         basebg.paint(" ")
+        //     );
         } else {
-            printf("   ");
+            print!("{}", ansi_term::Style::new().on(basebg).paint("   "));
         }
     }
 
-    fn printBoardRow(self, r: u8) {
-        let mut fromRow = -1i8;
-        let mut fromCol = -1i8;
-        let mut toRow = -1i8;
-        let mut toCol = -1i8;
-        if (!self.move_history.is_empty()) {
-            let lastMove = self.move_history[historyVector.size() - 1];
-            fromRow = lastMove / 7;
-            fromCol = lastMove % 7;
-            toRow = lastMove / 7;
-            toCol = lastMove % 7;
+    fn print_board_row(&self, r: u8) {
+        let mut fromRow = 200u8;
+        let mut fromCol = 200u8;
+        let mut destRow = 200u8;
+        let mut destCol = 200u8;
+        if let Some(lastMove) = self.move_history.last() {
+            ((fromRow, fromCol), (destRow, destCol)) = lastMove.get_from_dest();
         }
-        printf(" ");
+        print!(" ");
+        for c in (0..7u8) {
+            // textattr(RESET);
+            // textattr(BRIGHT);
+            self.print_char(r, c, fromRow, fromCol, &self.prev_state);
+            // textattr(RESET);
+        }
+        print!(" {} ", r + 1);
         for c in (0..7) {
-            textattr(RESET);
-            textattr(BRIGHT);
-            updateChar(r, c, fromRow, fromCol, &prevState);
-            textattr(RESET);
+            // textattr(RESET);
+            // textattr(BRIGHT);
+            self.print_char(r, c, destRow, destCol, &self.cur_state);
+            // textattr(RESET);
         }
-        printf(" %d ", r + 1);
-        for c in (0..7) {
-            textattr(RESET);
-            textattr(BRIGHT);
-            updateChar(r, c, toRow, toCol, &curState);
-            textattr(RESET);
-        }
-        printf(" ");
+        print!(" ");
     }
 
     // #ifdef _WIN32
@@ -121,68 +114,67 @@ impl TermDisplay<SimpleMove, SimpleBoard> {
     // #define boxchar "\u2588"
     // #endif
     const boxchar: &str = "\u{2588}";
-    pub fn displayAll(self) {
+    pub fn display_all(&self) {
         println!("\x1B[1;1H\x1B[2J\x1B[1;1H{}\n{}", dashes, spaces);
+        println!("{}", NEWCULAR);
         // #ifndef NO_ANSI
         //     printf("%s", adversareval_googly_txt);
         // #else
-        printHeader(
-            adversarevalBlocks,
-            3 * 12,
-            BLACK + 30,
-            WHITE + 30,
-            boxchar,
-            80,
-        );
+        // self.printHeader(
+        //     adversarevalBlocks,
+        //     3 * 12,
+        //     BLACK + 30,
+        //     WHITE + 30,
+        //     boxchar,
+        //     80,
+        // );
         // #endif
-        printf("\n");
-        printHeader(hotwheelschess, 3 * 15, RED + 30, YELLOW + 30, boxchar, 80);
-        printf("%s\n", spaces);
-        printf("%47.47s+%32.32s\n", dashes, dashes);
-        let historyBase = if (historyVector.size() > 33) {
-            historyVector.size() - 33
+        // print!("\n");
+        // printHeader(hotwheelschess, 3 * 15, RED + 30, YELLOW + 30, boxchar, 80);
+        // print!("{}\n", spaces);
+        println!("{:-<47}+{:-<32}", "", "");
+        let historyBase = if (self.move_history.len() > 33) {
+            self.move_history.len() - 33
         } else {
-            0u32
+            0usize
         };
-        for row in (0..13) {
+        for row in (0..14usize) {
             match (row) {
                 0 => {
                     print!(" Prev                 ");
-                    textfg(RED);
+                    // textfg(RED);
                     print!("_C_");
-                    textattr(RESET);
+                    // textattr(RESET);
                     print!("                  Now ");
                 }
 
-                1 | 11 => print!("                                               "),
+                1 | 12 => print!("                                               "),
 
-                10 => printf("  A  B  C  D  E  F  G     A  B  C  D  E  F  G  "),
+                11 => print!("  A  B  C  D  E  F  G     A  B  C  D  E  F  G  "),
 
-                12 => {
-                    textfg(BLUE);
+                13 => {
+                    // textfg(BLUE);
                     print!("                      .H.                      ");
-                    textattr(RESET);
+                    // textattr(RESET);
                 }
 
-                _ => printBoardRow(9 - row),
+                _ => self.print_board_row(10 - row as u8),
             }
             print!("| ");
             match (row) {
                 0 => print!("History:\n"),
-                1 => print!(historyBase > 0 ? "...\n" : "\n"),
+                1 => print!("{}", if historyBase > 0 { "...\n" } else { "\n" }),
                 _ => {
                     for i in (0..3) {
-                        if ((row - 2) * 3 + i + historyBase < historyVector.size()) {
-                            print!("{} / {} ",
-              historyVector.at((row-2) * 3 + i + historyBase).Print().to_string();
-              historyVector.at((row-2) * 3 + i + historyBase).Invert().to_string());
+                        if let Some(mov) = self.move_history.get((row - 2) * 3 + i + historyBase) {
+                            print!("{}/{} ", mov, mov.invert());
                         }
                     }
-                    println();
+                    println!();
                 }
             }
         }
-        printf("%47.47s+%32.32s\n", dashes, dashes);
+        println!("{:-<47}+{:-<32}", "", "");
     }
 }
 // }

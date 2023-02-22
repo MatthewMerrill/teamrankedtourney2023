@@ -25,6 +25,11 @@ impl Mov for SimpleMove {
             dest_rc: (9 - self.dest_rc.0, self.dest_rc.1),
         }
     }
+
+    fn get_from_dest(&self) -> ((u8, u8), (u8, u8)) {
+        (self.from_rc, self.dest_rc)
+    }
+    
 }
 
 impl Display for SimpleMove {
@@ -263,9 +268,16 @@ fn check_pos(pos: (u8, u8)) -> Result<(u8, u8), MoveError> {
 }
 
 impl Board<SimpleMove> for SimpleBoard {
+
+    fn get_piece(&self, row: u8, col: u8) -> Option<(Player, PieceKind)> {
+        self.rows[row as usize][col as usize]
+    }
+
     fn get_player(&self) -> Player {
         self.current_player
     }
+
+    
 
     fn get_moves(&self) -> Vec<SimpleMove> {
         self.rows
@@ -358,6 +370,10 @@ impl Board<SimpleMove> for SimpleBoard {
             self.rows[mov.from_rc.0 as usize][mov.from_rc.1 as usize];
         self.rows[mov.from_rc.0 as usize][mov.from_rc.1 as usize] = None;
         self.current_player = self.current_player.other();
+    }
+
+    fn invert(&self) -> Self {
+        todo!()
     }
 }
 

@@ -1,5 +1,7 @@
 // mod board;
 
+use std::fmt::Display;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MoveError {
     NoSuchPiece,
@@ -41,13 +43,16 @@ impl Player {
     }
 }
 
-pub trait Mov {
+pub trait Mov: Display {
     fn invert(&self) -> Self;
+    fn get_from_dest(&self) -> ((u8, u8), (u8, u8));
 }
 
 pub trait Board<M: Mov> {
+    fn get_piece(&self, row: u8, col: u8) -> Option<(Player, PieceKind)>;
     fn get_player(&self) -> Player;
     fn get_moves(&self) -> Vec<M>;
     fn get_winner(&self) -> Option<Player>;
-    fn do_move(&mut self, mov: &Mov);
+    fn do_move(&mut self, mov: &M);
+    fn invert(&self) -> Self;
 }

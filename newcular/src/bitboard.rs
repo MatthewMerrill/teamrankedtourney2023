@@ -26,7 +26,17 @@ impl Display for BitBoardMove {
 
 impl Mov for BitBoardMove {
     fn invert(&self) -> Self {
-        todo!()
+        let from_row = self.from_pos / 7;
+        let from_col = self.from_pos % 7;
+        let dest_row = self.dest_pos / 7;
+        let dest_col = self.dest_pos % 7;
+        BitBoardMove {
+            from_pos: 7 * (8 - from_row) + from_col,
+            dest_pos: 7 * (8 - dest_row) + dest_col,
+        }
+    }
+    fn get_from_dest(&self) -> ((u8, u8), (u8, u8)) {
+        ((self.from_pos / 7, self.from_pos % 7), (self.dest_pos / 7, self.dest_pos % 7))
     }
 }
 
@@ -53,7 +63,7 @@ impl Display for BitBoard {
                 9 - row_idx,
                 (0..7)
                     .map(|col_idx| {
-                        let piece_str = match self.piece_at(row_idx, col_idx) {
+                        let piece_str = match self.get_piece(8 - row_idx, col_idx) {
                             Some((Player::PlayerOne, PieceKind::B)) => " B ",
                             Some((Player::PlayerOne, PieceKind::K)) => " K ",
                             Some((Player::PlayerOne, PieceKind::N)) => " N ",
@@ -102,21 +112,37 @@ fn west(x: u64) -> u64 {
 }
 
 #[inline]
-fn do_move_up(board: &mut u64, from_mask: u64, up_shift: u8) {
-    *board = ((*board | (*board & from_mask)) << up_shift) & !from_mask;
+fn do_move_up(board: &mut u64, from_mask: u64, dest_mask: u64, up_shift: u8) {
+    *board = ((*board & from_mask) << up_shift) | (*board & !from_mask & !dest_mask);
 }
 
 #[inline]
-fn do_move_down(board: &mut u64, from_mask: u64, down_shift: u8) {
-    *board = ((*board | (*board & from_mask)) >> down_shift) & !from_mask;
+fn do_move_down(board: &mut u64, from_mask: u64, dest_mask: u64, down_shift: u8) {
+    *board = ((*board & from_mask) >> down_shift) | (*board & !from_mask & !dest_mask);
 }
+
+/*
+static U64 FULL_BOARD = (1ULL << 56) - 1;
+static U64 FlipVert(U64 state) {
+  const U64 k1 = 0x01fc07f01fc07fULL;
+  const U64 k2 = 0x0003fff0003fffULL;
+  U64 x = state;
+  x = ((x >>  7) & k1) | ((x & k1) <<  7);
+  x &= FULL_BOARD;
+  x = ((x >> 14) & k2) | ((x & k2) << 14);
+  x &= FULL_BOARD;
+  x = ( x >> 28)       | ( x       << 28);
+  x &= FULL_BOARD;
+  return x;
+}
+ */
 
 #[inline]
 fn flip_vertical(x: u64) -> u64 {
-    let k1 = 0b000000001111111000000011111110000000111111100000001111111;
-    let k2 = 0b000000000000000111111111111110000000000000011111111111111;
-    let x = ((x >> 7) & k1) | ((x & k1) << 7);
-    let x = ((x >> 14) & k2) | ((x & k2) << 14);
+    let k1 = 0b0000000011111110000000111111100000000000000111111100000001111111u64;
+    let k2 = 0b0000000000000001111111111111100000000000000000000011111111111111u64;
+    let x = (((x >> 7) & k1) | ((x & k1) << 7)) & 0x7FFFFFFFFFFFFFFF;
+    let x = (((x >> 14) & k2) | ((x & k2) << 14)) & 0x7FFFFFFFFFFFFFFF;
     ((x >> 35) | (x << 35)) & 0x7FFFFFFFFFFFFFFF
 }
 
@@ -168,27 +194,6 @@ impl BitBoard {
         }
     }
 
-    fn piece_at(&self, row_idx: u8, col_idx: u8) -> Option<(Player, PieceKind)> {
-        let hot_bit = 1u64 << (row_idx * 7 + col_idx);
-        if (self.piece_mask & hot_bit) == 0 {
-            return None;
-        }
-        Some((
-            match (self.player_one_mask & hot_bit) {
-                0 => Player::PlayerTwo,
-                _ => Player::PlayerOne,
-            },
-            match 1 {
-                _ if (self.bishop_mask & hot_bit) == 0 => PieceKind::B,
-                _ if (self.king_mask & hot_bit) == 0 => PieceKind::K,
-                _ if (self.knight_mask & hot_bit) == 0 => PieceKind::N,
-                _ if (self.pawn_mask & hot_bit) == 0 => PieceKind::P,
-                _ if (self.rook_mask & hot_bit) == 0 => PieceKind::R,
-                _ => unimplemented!(),
-            },
-        ))
-    }
-
     // tbh having code for either scenario seems like it would be faster
     // fn invert(&mut self) -> Self {
     //     self.piece_mask = flip_vertical(self.piece_mask);
@@ -223,12 +228,12 @@ impl BitBoard {
         // See https://go.mattmerr.com/bitboardhex
         let mut positions = 0u64;
         // Attacks
-        positions |= project_bwd(self, pos, 0xfdfbf7efdfbf00u64, 8);
-        positions |= project_bwd(self, pos, 0x7efdfbf7efdf80u64, 6);
-        positions &= (self.piece_mask & !self.player_one_mask);
+        positions |= project_bwd(self, pos, 0x7efdfbf7efdfbf00u64, 8);
+        positions |= project_bwd(self, pos, 0x3f7efdfbf7efdf80u64, 6);
+        positions &= self.piece_mask & !self.player_one_mask;
 
-        positions |= project_fwd(self, pos, 0x00fdfbf7efdfbfu64, 8);
-        positions |= project_fwd(self, pos, 0x01fbf7efdfbf7eu64, 6);
+        positions |= project_fwd(self, pos, 0x007efdfbf7efdfbfu64, 8);
+        positions |= project_fwd(self, pos, 0x00fdfbf7efdfbf7eu64, 6);
 
         positions | pos
     }
@@ -253,12 +258,12 @@ impl BitBoard {
         let mut positions = 0u64;
 
         // Attacks
-        positions |= project_fwd(self, pos, 0x7efdfbf7efdfbfu64, 1);
-        positions |= project_bwd(self, pos, 0xfdfbf7efdfbf7eu64, 1);
-        positions |= project_bwd(self, pos, 0xffffffffffff80u64, 7);
+        positions |= project_fwd(self, pos, 0x3f7efdfbf7efdfbfu64, 1);
+        positions |= project_bwd(self, pos, 0x7efdfbf7efdfbf7eu64, 1);
+        positions |= project_bwd(self, pos, 0x7fffffffffffff80u64, 7);
         positions &= (self.piece_mask & !self.player_one_mask);
 
-        positions |= project_fwd(self, pos, 0x01ffffffffffffu64, 7);
+        positions |= project_fwd(self, pos, 0x00ffffffffffffffu64, 7);
         positions | pos
     }
 
@@ -267,10 +272,10 @@ impl BitBoard {
 
         // See https://go.mattmerr.com/bitboardhex
         // Backwards attacks
-        positions |= (pos & 0x3e7cf9f3e7cf80u64) >> -(-1 * 7 + 2);
-        positions |= (pos & 0xf9f3e7cf9f3e00u64) >> -(-1 * 7 - 2);
-        positions |= (pos & 0x7efdfbf7efc000u64) >> -(-2 * 7 + 1);
-        positions |= (pos & 0xfdfbf7efdf8000u64) >> -(-2 * 7 - 1);
+        positions |= (pos & 0x1f3e7cf9f3e7cf80) >> -(-1 * 7 + 2);
+        positions |= (pos & 0x7cf9f3e7cf9f3e00) >> -(-1 * 7 - 2);
+        positions |= (pos & 0x7efdfbf7efdf8000) >> -(-2 * 7 + 1);
+        positions |= (pos & 0x7efdfbf7efdf8000) >> -(-2 * 7 - 1);
         positions &= (self.piece_mask & !self.player_one_mask);
 
         // Forward moves
@@ -285,11 +290,48 @@ impl BitBoard {
 }
 
 impl Board<BitBoardMove> for BitBoard {
+    fn get_piece(&self, row_idx: u8, col_idx: u8) -> Option<(Player, PieceKind)> {
+        let hot_bit = 1u64 << (row_idx * 7 + col_idx);
+        if (self.piece_mask & hot_bit) == 0 {
+            return None;
+        }
+        Some((
+            match (self.player_one_mask & hot_bit) {
+                0 => Player::PlayerTwo,
+                _ => Player::PlayerOne,
+            },
+            match 1 {
+                _ if (self.bishop_mask & hot_bit) != 0 => PieceKind::B,
+                _ if (self.king_mask & hot_bit) != 0 => PieceKind::K,
+                _ if (self.knight_mask & hot_bit) != 0 => PieceKind::N,
+                _ if (self.pawn_mask & hot_bit) != 0 => PieceKind::P,
+                _ if (self.rook_mask & hot_bit) != 0 => PieceKind::R,
+                _ => unimplemented!(),
+            },
+        ))
+    }
     fn get_player(&self) -> Player {
         self.current_player
     }
 
+    fn invert(&self) -> BitBoard {
+        return BitBoard {
+            current_player: self.current_player.other(),
+            piece_mask: flip_vertical(self.piece_mask),
+            player_one_mask: flip_vertical(self.piece_mask ^ self.player_one_mask),
+            bishop_mask: flip_vertical(self.bishop_mask),
+            king_mask: flip_vertical(self.king_mask),
+            knight_mask: flip_vertical(self.knight_mask),
+            rook_mask: flip_vertical(self.rook_mask),
+            pawn_mask: flip_vertical(self.pawn_mask),
+        }
+    }
+
     fn get_moves(&self) -> Vec<BitBoardMove> {
+        if self.current_player != Player::PlayerOne {
+            let inv = self.invert();
+            return inv.get_moves().into_iter().map(|m|m.invert()).collect()
+        }
         let mut unconsidered = self.piece_mask & self.player_one_mask;
         let mut ret = vec![];
         while unconsidered > 0 {
@@ -329,38 +371,45 @@ impl Board<BitBoardMove> for BitBoard {
         None
     }
 
-    fn do_move(&mut self, mov: &BitBoardMove) -> Result<(), MoveError> {
+    fn do_move(&mut self, mov: &BitBoardMove) {
         if mov.from_pos == mov.dest_pos {
             // Explode!!
             let mut mask = 1u64 << mov.from_pos;
-            mask |= (mask & 0x01ffffffffffffu64) << 7;
-            mask |= (mask & 0xffffffffffff80u64) >> 7;
-            mask |= (mask & 0xfdfbf7efdfbf7eu64) << 1;
-            mask |= (mask & 0x7efdfbf7efdfbfu64) >> 1;
+            mask |= (mask & 0x00ffffffffffffffu64) << 7;
+            mask |= (mask & 0x7fffffffffffff80u64) >> 7;
+            mask |= (mask & 0x3f7efdfbf7efdfbfu64) << 1;
+            mask |= (mask & 0x7efdfbf7efdfbf7eu64) >> 1;
             self.piece_mask &= !mask;
+            self.player_one_mask &= !mask;
+            self.bishop_mask &= !mask;
+            self.king_mask &= !mask;
+            self.knight_mask &= !mask;
+            self.pawn_mask &= !mask;
+            self.rook_mask &= !mask;
         } else if mov.from_pos < mov.dest_pos {
             let from_mask = (1u64 << mov.from_pos);
+            let dest_mask = (1u64 << mov.dest_pos);
             let up_shift = mov.dest_pos - mov.from_pos;
-            do_move_up(&mut self.piece_mask, from_mask, up_shift);
-            do_move_up(&mut self.player_one_mask, from_mask, up_shift);
-            do_move_up(&mut self.bishop_mask, from_mask, up_shift);
-            do_move_up(&mut self.king_mask, from_mask, up_shift);
-            do_move_up(&mut self.knight_mask, from_mask, up_shift);
-            do_move_up(&mut self.pawn_mask, from_mask, up_shift);
-            do_move_up(&mut self.rook_mask, from_mask, up_shift);
+            do_move_up(&mut self.piece_mask, from_mask, dest_mask, up_shift);
+            do_move_up(&mut self.player_one_mask, from_mask, dest_mask, up_shift);
+            do_move_up(&mut self.bishop_mask, from_mask, dest_mask, up_shift);
+            do_move_up(&mut self.king_mask, from_mask, dest_mask, up_shift);
+            do_move_up(&mut self.knight_mask, from_mask, dest_mask, up_shift);
+            do_move_up(&mut self.pawn_mask, from_mask, dest_mask, up_shift);
+            do_move_up(&mut self.rook_mask, from_mask, dest_mask, up_shift);
         } else {
             let from_mask = (1u64 << mov.from_pos);
+            let dest_mask = (1u64 << mov.dest_pos);
             let down_shift = mov.from_pos - mov.dest_pos;
-            do_move_down(&mut self.piece_mask, from_mask, down_shift);
-            do_move_down(&mut self.player_one_mask, from_mask, down_shift);
-            do_move_down(&mut self.bishop_mask, from_mask, down_shift);
-            do_move_down(&mut self.king_mask, from_mask, down_shift);
-            do_move_down(&mut self.knight_mask, from_mask, down_shift);
-            do_move_down(&mut self.pawn_mask, from_mask, down_shift);
-            do_move_down(&mut self.rook_mask, from_mask, down_shift);
+            do_move_down(&mut self.piece_mask, from_mask, dest_mask, down_shift);
+            do_move_down(&mut self.player_one_mask, from_mask, dest_mask, down_shift);
+            do_move_down(&mut self.bishop_mask, from_mask, dest_mask, down_shift);
+            do_move_down(&mut self.king_mask, from_mask, dest_mask, down_shift);
+            do_move_down(&mut self.knight_mask, from_mask, dest_mask, down_shift);
+            do_move_down(&mut self.pawn_mask, from_mask, dest_mask, down_shift);
+            do_move_down(&mut self.rook_mask, from_mask, dest_mask, down_shift);
         }
         self.current_player = self.current_player.other();
-        Ok(())
     }
 }
 
@@ -388,5 +437,13 @@ mod test {
             moves,
             expected
         )
+    }
+
+    #[test]
+    fn flip_vertical() {
+        assert_eq!(
+            0x01ffffffffffffu64,
+            0xffffffffffff80u64,
+        );
     }
 }

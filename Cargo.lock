@@ -658,6 +658,7 @@ dependencies = [
 name = "kled"
 version = "0.1.0"
 dependencies = [
+ "ansi_term",
  "minimax",
  "newcular",
 ]
@@ -1217,12 +1218,6 @@ dependencies = [
  "winapi-i686-pc-windows-gnu",
  "winapi-x86_64-pc-windows-gnu",
 ]
-
-[[package]]
-name = "winapi-build"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
 
 [[package]]
 name = "winapi-i686-pc-windows-gnu"

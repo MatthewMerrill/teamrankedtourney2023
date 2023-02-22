@@ -1,38 +1,46 @@
 use std::{
     thread,
-    time::{Duration, Instant},
+    time::{Duration, Instant}, marker::PhantomData,
 };
 
 use crate::EvalResult;
 use crossbeam_channel::{after, Receiver};
 use newcular::{
-    board::{Board, Player},
-    simple::{SimpleBoard, SimpleMove},
+    board::{Board, Player, Mov},
 };
 
 // type EvalFn = dyn Fn(&SimpleBoard) -> i32;
 
-pub struct ABMax<F>
+pub struct ABMax<M, B, F>
 where
+    M: Mov + Send + Clone,
+    B: Board<M> + Clone + Send,
     F: Send,
-    F: Fn(&SimpleBoard) -> i32,
+    F: Fn(&B) -> i32,
 {
     eval: F,
     rx: Receiver<Instant>,
+
+    _phantom_move: PhantomData<M>,
+    _phantom_board: PhantomData<B>,
     // pub alpha: EvalResult,
     // pub beta: EvalResult,
 }
 
-impl<F> ABMax<F>
+impl<M, B, F> ABMax<M, B, F>
 where
+    M: Mov + Send + Clone + 'static,
+    B: Board<M> + Clone + Send + 'static,
     F: Send + 'static,
-    F: Fn(&SimpleBoard) -> i32,
+    F: Fn(&B) -> i32,
 {
-    pub fn choose_best_iterdeep(board: &SimpleBoard, eval: F) -> (SimpleMove, EvalResult) {
-        let (tx, rx) = crossbeam_channel::unbounded::<(SimpleMove, EvalResult)>();
+    pub fn choose_best_iterdeep(board: &B, eval: F) -> (M, EvalResult) {
+        let (tx, rx) = crossbeam_channel::unbounded::<(M, EvalResult)>();
         let mut ab = ABMax {
             eval,
             rx: after(Duration::from_secs(5)),
+            _phantom_move: PhantomData {},
+            _phantom_board: PhantomData {},
         };
         let board = board.clone();
         thread::spawn(move || {
@@ -41,7 +49,7 @@ where
                 match ab.choose_best(&board, depth) {
                     // todo: short-circuit for win/loss?
                     Some(x) => {
-                        tx.send(x).unwrap();
+                        tx.send(x.clone()).unwrap();
                         match x {
                             (_, EvalResult::Evaluate(_)) => {},
                             _ => { println!("Got {depth} plies deep!"); break; },
@@ -57,9 +65,9 @@ where
 
     pub fn choose_best(
         &mut self,
-        board: &SimpleBoard,
+        board: &B,
         plies: u8,
-    ) -> Option<(SimpleMove, EvalResult)> {
+    ) -> Option<(M, EvalResult)> {
         let moves = board.get_moves();
         match board.get_player() {
             Player::PlayerOne => {
@@ -78,7 +86,7 @@ where
                         None => return None,
                     }
                 }
-                results.iter().max_by_key(|t| t.1).copied()
+                results.into_iter().max_by_key(|t| t.1) //.copied()
             }
             Player::PlayerTwo => {
                 let mut results = vec![];
@@ -95,14 +103,14 @@ where
                         None => return None,
                     }
                 }
-                results.iter().min_by_key(|t| t.1).copied()
+                results.into_iter().min_by_key(|t| t.1) //.copied()
             }
         }
     }
 
     fn maxi(
         &mut self,
-        board: &SimpleBoard,
+        board: &B,
         mut alpha: EvalResult,
         beta: EvalResult,
         plies: u8,
@@ -138,7 +146,7 @@ where
 
     fn mini(
         &mut self,
-        board: &SimpleBoard,
+        board: &B,
         alpha: EvalResult,
         mut beta: EvalResult,
         plies: u8,
