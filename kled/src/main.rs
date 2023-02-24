@@ -1,6 +1,11 @@
 use minimax::{abmax::ABMax, minimax::MiniMax, EvalResult};
-use std::{collections::HashMap, fmt::Display, io::{stdin, self, Write}};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    io::{self, stdin, Write},
+};
 
+use newcular::board::PieceKind;
 use newcular::{
     bitboard::BitBoard,
     board::{Board, Mov, Player},
@@ -9,28 +14,28 @@ use newcular::{
 
 mod termdisplay;
 
-// fn piece_rank(kind: &PieceKind) -> i32 {
-//     match kind {
-//         PieceKind::B => 5,
-//         PieceKind::K => 50,
-//         PieceKind::N => 3,
-//         PieceKind::R => 5,
-//         PieceKind::P => 1,
-//     }
-// }
+fn piece_rank(kind: &PieceKind) -> i32 {
+    match kind {
+        PieceKind::B => 5,
+        PieceKind::K => 50,
+        PieceKind::N => 3,
+        PieceKind::R => 5,
+        PieceKind::P => 1,
+    }
+}
 
 fn eval_bitboard(b: &BitBoard) -> i32 {
-    0
-    // b.eval
-    // b.rows
-    //     .iter()
-    //     .flatten()
-    //     .filter_map(|sq| match sq {
-    //         Some((Player::PlayerOne, kind)) => Some(piece_rank(kind)),
-    //         Some((Player::PlayerTwo, kind)) => Some(-piece_rank(kind)),
-    //         None => None,
-    //     })
-    //     .sum()
+    let mut total = 0i32;
+    for row_idx in 0..9 {
+        for col_idx in 0..7 {
+            total += match b.get_piece(row_idx, col_idx) {
+                Some((Player::PlayerOne, kind)) => piece_rank(&kind),
+                Some((Player::PlayerTwo, kind)) => -piece_rank(&kind),
+                None => 0i32,
+            };
+        }
+    }
+    total
 }
 
 fn main() {
@@ -43,7 +48,7 @@ where
     B: Board<M> + Display + Send + Clone + 'static,
     F: Send + Clone + 'static + Fn(&B) -> i32,
 {
-    let mut who_am_i = Player::PlayerOne;
+    let mut who_am_i = Player::PlayerTwo;
     let mut term = termdisplay::TermDisplay {
         prev_state: board.clone(),
         cur_state: board.clone(),
@@ -69,14 +74,15 @@ where
                 .join(", ")
         );
 
-        if board.get_player() == who_am_i {
+        if false {
+            //board.get_player() == who_am_i {
             // let mut mm = ABMax {
             //     eval: |b|{eval(b)},
             //     // alpha: EvalResult::FavorTwo(0),
             //     // beta: EvalResult::FavorOne(0),
             //  };
             print!("Thinking...");
-            io::stdout().flush();
+            let _ = io::stdout().flush();
             let (mov, evaluation) = ABMax::<M, B, _>::choose_best_iterdeep(&board, eval.clone());
             println!(
                 "I'll play {}. {}",
@@ -105,7 +111,7 @@ where
             term.prev_state = term.cur_state.clone();
             term.cur_state = board.clone();
             term.move_history.push(mov);
-            // who_am_i = who_am_i.other();
+            who_am_i = who_am_i.other();
         } else {
             loop {
                 println!("Enter a move: ");
@@ -124,6 +130,7 @@ where
                     }
                     None => {
                         println!("Not a valid move.");
+                        board.get_moves();
                     }
                 }
             }

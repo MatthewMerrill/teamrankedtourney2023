@@ -7,9 +7,9 @@ use newcular::board::Player;
 use newcular::simple::SimpleBoard;
 use newcular::simple::SimpleMove;
 
-const dashes: &str =
+const DASHES: &str =
     "--------------------------------------------------------------------------------";
-const spaces: &str =
+const SPACES: &str =
     "                                                                                ";
 
 // const char* hotwheelschess[] {
@@ -45,10 +45,9 @@ pub struct TermDisplay<M: Mov, B: Board<M>> {
 }
 
 impl<M: Mov, B: Board<M>> TermDisplay<M, B> {
-    fn print_char(&self, r: u8, c: u8, hlRow: u8, hlCol: u8, state: &B) {
-        let bit = 1u64 << (r * 7 + c);
-        let basebg = match (1u8 & (r ^ c)) {
-            _ if r == hlRow && (c - hlCol) * (c - hlCol) <= 0 => ansi_term::Color::Fixed(109),
+    fn print_char(&self, r: u8, c: u8, hl_row: u8, hl_col: u8, state: &B) {
+        let basebg = match 1u8 & (r ^ c) {
+            _ if r == hl_row && c == hl_col => ansi_term::Color::Fixed(109),
             0 => ansi_term::Color::Fixed(230u8),
             _ => ansi_term::Color::Fixed(252u8),
         };
@@ -61,8 +60,8 @@ impl<M: Mov, B: Board<M>> TermDisplay<M, B> {
                 PieceKind::R => "R",
             };
             let (fg, plch) = match player {
-                Player::PlayerOne => (ansi_term::Color::Fixed(88), "_"),
-                Player::PlayerTwo => (ansi_term::Color::Fixed(18), "."),
+                Player::PlayerOne => (ansi_term::Color::Fixed(18), "."),
+                Player::PlayerTwo => (ansi_term::Color::Fixed(88), "_"),
             };
             print!(
                 "{}",
@@ -71,7 +70,7 @@ impl<M: Mov, B: Board<M>> TermDisplay<M, B> {
                     .on(basebg)
                     .paint(format!("{}{}{}", plch, ch, plch))
             );
-        // } else if (c == hlCol) {
+        // } else if (c == hl_col) {
         //     print!(
         //         "{}{}{}",
         //         basebg.paint(" "),
@@ -84,25 +83,25 @@ impl<M: Mov, B: Board<M>> TermDisplay<M, B> {
     }
 
     fn print_board_row(&self, r: u8) {
-        let mut fromRow = 200u8;
-        let mut fromCol = 200u8;
-        let mut destRow = 200u8;
-        let mut destCol = 200u8;
+        let mut from_row = 200u8;
+        let mut from_col = 200u8;
+        let mut dest_row = 200u8;
+        let mut dest_col = 200u8;
         if let Some(lastMove) = self.move_history.last() {
-            ((fromRow, fromCol), (destRow, destCol)) = lastMove.get_from_dest();
+            ((from_row, from_col), (dest_row, dest_col)) = lastMove.get_from_dest();
         }
         print!(" ");
-        for c in (0..7u8) {
+        for c in 0..7u8 {
             // textattr(RESET);
             // textattr(BRIGHT);
-            self.print_char(r, c, fromRow, fromCol, &self.prev_state);
+            self.print_char(r, c, from_row, from_col, &self.prev_state);
             // textattr(RESET);
         }
         print!(" {} ", r + 1);
-        for c in (0..7) {
+        for c in 0..7 {
             // textattr(RESET);
             // textattr(BRIGHT);
-            self.print_char(r, c, destRow, destCol, &self.cur_state);
+            self.print_char(r, c, dest_row, dest_col, &self.cur_state);
             // textattr(RESET);
         }
         print!(" ");
@@ -113,10 +112,10 @@ impl<M: Mov, B: Board<M>> TermDisplay<M, B> {
     // #else
     // #define boxchar "\u2588"
     // #endif
-    const boxchar: &str = "\u{2588}";
+    // const boxchar: &str = "\u{2588}";
     pub fn display_all(&self) {
-        println!("\x1B[1;1H\x1B[2J\x1B[1;1H{}\n{}", dashes, spaces);
-        println!("{}", NEWCULAR);
+        // println!("\x1B[1;1H\x1B[2J\x1B[1;1H{}\n{}", DASHES, SPACES);
+        // println!("{}", NEWCULAR);
         // #ifndef NO_ANSI
         //     printf("%s", adversareval_googly_txt);
         // #else
@@ -131,15 +130,15 @@ impl<M: Mov, B: Board<M>> TermDisplay<M, B> {
         // #endif
         // print!("\n");
         // printHeader(hotwheelschess, 3 * 15, RED + 30, YELLOW + 30, boxchar, 80);
-        // print!("{}\n", spaces);
+        // print!("{}\n", SPACES);
         println!("{:-<47}+{:-<32}", "", "");
-        let historyBase = if (self.move_history.len() > 33) {
+        let history_base = if self.move_history.len() > 33 {
             self.move_history.len() - 33
         } else {
             0usize
         };
-        for row in (0..14usize) {
-            match (row) {
+        for row in 0..14usize {
+            match row {
                 0 => {
                     print!(" Prev                 ");
                     // textfg(RED);
@@ -161,12 +160,12 @@ impl<M: Mov, B: Board<M>> TermDisplay<M, B> {
                 _ => self.print_board_row(10 - row as u8),
             }
             print!("| ");
-            match (row) {
+            match row {
                 0 => print!("History:\n"),
-                1 => print!("{}", if historyBase > 0 { "...\n" } else { "\n" }),
+                1 => print!("{}", if history_base > 0 { "...\n" } else { "\n" }),
                 _ => {
-                    for i in (0..3) {
-                        if let Some(mov) = self.move_history.get((row - 2) * 3 + i + historyBase) {
+                    for i in 0..3 {
+                        if let Some(mov) = self.move_history.get((row - 2) * 3 + i + history_base) {
                             print!("{}/{} ", mov, mov.invert());
                         }
                     }
