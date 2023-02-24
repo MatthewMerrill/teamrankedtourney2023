@@ -4,7 +4,7 @@ use actix_web::{get, middleware, web, App, Error as AWError, HttpResponse, HttpS
 use log::info;
 use newcular::{
     board::Board,
-    simple::{SimpleBoard, SimpleMove},
+    /*  */bitboard::{BitBoard, BitBoardMove},
 };
 use serde::Serialize;
 use std::io;
@@ -14,16 +14,17 @@ struct GameSummary {
     valid_moves: Vec<String>,
     render: String,
     winner: Option<i8>,
+    representation: [[[u8;7];9];7]
 }
 
-fn play_board_moves(moves: &Vec<String>) -> Result<SimpleBoard, usize> {
-    let mut board = SimpleBoard::init();
+fn play_board_moves(moves: &Vec<String>) -> Result<BitBoard, usize> {
+    let mut board = BitBoard::init();
     for (idx, mov) in moves.iter().enumerate() {
         let moves_by_repr = board
             .get_moves()
             .iter()
             .map(|&m| (m.to_string(), m))
-            .collect::<HashMap<String, SimpleMove>>();
+            .collect::<HashMap<String, BitBoardMove>>();
 
         match moves_by_repr.get(mov) {
             Some(mov) => board.do_move(mov),
@@ -90,6 +91,7 @@ async fn summary(req: web::Path<(String,)>) -> impl Responder {
                 .collect::<Vec<String>>(),
             render: board.to_string(),
             winner: board.get_winner().map(|player| player.ord()),
+            representation: board.array_representation(),
         }),
         Err(e) => {
             return HttpResponse::BadRequest().body(format!("invalid move at index {}", e));

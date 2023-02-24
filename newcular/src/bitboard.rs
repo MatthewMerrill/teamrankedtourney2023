@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display};
+use std::{fmt::{Debug, Display}, ops::Shr};
 
 use crate::board::*;
 
@@ -202,6 +202,29 @@ impl BitBoard {
             rook_mask: 0b0001010000000000000000000000000000000000000000000000000000010100,
             pawn_mask: 0b0000000000000000000000101010100000001010101000100000000000000000,
         }
+    }
+
+    #[inline]
+    fn board_array_representation(&self, board: u64) -> [[u8;7];9] {
+        let mut ret: [[u8;7];9] = [[0;7]; 9];
+        for row_idx in 0..9 {
+            for col_idx in 0..7 {
+                ret[row_idx][col_idx] = ((board >> (7 * row_idx + col_idx)) & 1) as u8;
+            }
+        }
+        ret
+    }
+
+    pub fn array_representation(&self) -> [[[u8;7];9];7] {
+        [
+            self.board_array_representation(self.piece_mask),
+            self.board_array_representation(self.player_one_mask),
+            self.board_array_representation(self.bishop_mask),
+            self.board_array_representation(self.king_mask),
+            self.board_array_representation(self.knight_mask),
+            self.board_array_representation(self.pawn_mask),
+            self.board_array_representation(self.rook_mask),
+        ]
     }
 
     // tbh having code for either scenario seems like it would be faster
