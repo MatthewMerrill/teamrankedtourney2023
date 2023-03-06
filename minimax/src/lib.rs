@@ -1,7 +1,9 @@
 use std::cmp::Ordering;
 
-pub mod minimax;
 pub mod abmax;
+pub mod minimax;
+
+mod ttable;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum EvalResult {
@@ -44,4 +46,3 @@ impl PartialOrd<EvalResult> for EvalResult {
         Some(self.cmp(other))
     }
 }
-

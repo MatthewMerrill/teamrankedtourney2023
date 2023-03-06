@@ -1,0 +1,3 @@
+[submodule "qbot/alphazerosimple"]
+	path = qbot/alphazerosimple
+	url = https://github.com/JoshVarty/AlphaZeroSimple

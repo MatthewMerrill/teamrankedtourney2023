@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="RemoteTargetsManager">
+    <targets>
+      <target name="skaarldocker" type="docker" uuid="818fe83b-85c0-452f-a8b8-25f7a4941c86">
+        <config>
+          <option name="targetPlatform">
+            <TargetPlatform />
+          </option>
+          <option name="buildImageConfig">
+            <BuildImageConfig>
+              <option name="builtImageTag" value="&lt;none&gt;:&lt;none&gt;" />
+              <option name="dockerFile" value="Dockerfile" />
+            </BuildImageConfig>
+          </option>
+        </config>
+        <ContributedStateBase type="RsLanguageRuntime">
+          <config>
+            <option name="cargoPath" value="/usr/local/cargo/bin/cargo" />
+            <option name="cargoVersion" value="1.67.1 (8ecd4f20a 2023-01-10)" />
+            <option name="rustcPath" value="/usr/local/cargo/bin/rustc" />
+            <option name="rustcVersion" value="1.67.1 (d5a82bbd2 2023-02-07)" />
+          </config>
+        </ContributedStateBase>
+      </target>
+    </targets>
+  </component>
+</project>

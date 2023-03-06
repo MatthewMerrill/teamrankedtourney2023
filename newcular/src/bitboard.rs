@@ -1,4 +1,7 @@
-use std::{fmt::{Debug, Display}, ops::Shr};
+use std::{
+    fmt::{Debug, Display},
+    ops::Shr,
+};
 
 use crate::board::*;
 
@@ -49,7 +52,7 @@ impl Mov for BitBoardMove {
     }
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct BitBoard {
     current_player: Player,
     pub piece_mask: u64,
@@ -205,8 +208,8 @@ impl BitBoard {
     }
 
     #[inline]
-    fn board_array_representation(&self, board: u64) -> [[u8;7];9] {
-        let mut ret: [[u8;7];9] = [[0;7]; 9];
+    fn board_array_representation(&self, board: u64) -> [[u8; 7]; 9] {
+        let mut ret: [[u8; 7]; 9] = [[0; 7]; 9];
         for row_idx in 0..9 {
             for col_idx in 0..7 {
                 ret[row_idx][col_idx] = ((board >> (7 * row_idx + col_idx)) & 1) as u8;
@@ -215,7 +218,7 @@ impl BitBoard {
         ret
     }
 
-    pub fn array_representation(&self) -> [[[u8;7];9];7] {
+    pub fn array_representation(&self) -> [[[u8; 7]; 9]; 7] {
         [
             self.board_array_representation(self.piece_mask),
             self.board_array_representation(self.player_one_mask),

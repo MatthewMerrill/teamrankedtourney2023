@@ -44,7 +44,7 @@ impl Display for SimpleMove {
     }
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct SimpleBoard {
     current_player: Player,
     pub rows: [[Option<(Player, PieceKind)>; 7]; 9],

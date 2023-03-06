@@ -1,9 +1,8 @@
-
-from collections import namedtuple
+import functools
 from typing import Tuple, List
 
 import requests
-import functools
+
 
 class Move:
     def __init__(self, from_rc: Tuple[int, int], dest_rc: Tuple[int, int]):
@@ -17,21 +16,32 @@ class Move:
         )
 
     def get_from_dest(self):
-        return (self.from_rc, self.dest_rc)
+        return self.from_rc, self.dest_rc
+
 
 class Board:
-    def __init__(self, valid_moves, render, winner, representation):
+    def __init__(self, history, valid_moves, render, winner, representation):
+        self.history = history
         self.valid_moves = valid_moves
         self.render = render
         self.winner = winner
         self.representation = representation
 
+    def with_move(self, move):
+        return load_board(self.history + [move])
+
+
 @functools.lru_cache(maxsize=10000)
-def load_board(moves: List[str]):
+def load_board(moves: Tuple[str]):
     res = requests.get('http://localhost:8181/gameType/newcular/summary/' + ' '.join(moves))
     res_json = res.json()
     return Board(
+        moves,
         res_json['valid_moves'],
         res_json['render'],
         res_json['winner'],
         res_json['representation'])
+
+
+if __name__ == '__main__':
+    print(vars(load_board(('D1D1',))))

@@ -1,4 +1,5 @@
 use minimax::{abmax::ABMax, minimax::MiniMax, EvalResult};
+use std::hash::Hash;
 use std::{
     collections::HashMap,
     fmt::Display,
@@ -25,17 +26,29 @@ fn piece_rank(kind: &PieceKind) -> i32 {
 }
 
 fn eval_bitboard(b: &BitBoard) -> i32 {
-    let mut total = 0i32;
-    for row_idx in 0..9 {
-        for col_idx in 0..7 {
-            total += match b.get_piece(row_idx, col_idx) {
-                Some((Player::PlayerOne, kind)) => piece_rank(&kind),
-                Some((Player::PlayerTwo, kind)) => -piece_rank(&kind),
-                None => 0i32,
-            };
-        }
-    }
-    total
+    let mut eval = 0i32;
+    eval += 5 * (b.bishop_mask & b.player_one_mask).count_ones() as i32;
+    eval += 50 * (b.king_mask & b.player_one_mask).count_ones() as i32;
+    eval += 3 * (b.knight_mask & b.player_one_mask).count_ones() as i32;
+    eval += 5 * (b.rook_mask & b.player_one_mask).count_ones() as i32;
+    eval += 2 * (b.pawn_mask & b.player_one_mask).count_ones() as i32;
+    eval -= 5 * (b.bishop_mask & !b.player_one_mask).count_ones() as i32;
+    eval -= 50 * (b.king_mask & !b.player_one_mask).count_ones() as i32;
+    eval -= 3 * (b.knight_mask & !b.player_one_mask).count_ones() as i32;
+    eval -= 5 * (b.rook_mask & !b.player_one_mask).count_ones() as i32;
+    eval -= 2 * (b.pawn_mask & !b.player_one_mask).count_ones() as i32;
+    eval
+    // let mut total = 0i32;
+    // for row_idx in 0..9 {
+    //     for col_idx in 0..7 {
+    //         total += match b.get_piece(row_idx, col_idx) {
+    //             Some((Player::PlayerOne, kind)) => piece_rank(&kind),
+    //             Some((Player::PlayerTwo, kind)) => -piece_rank(&kind),
+    //             None => 0i32,
+    //         };
+    //     }
+    // }
+    // total
 }
 
 fn main() {
@@ -45,15 +58,16 @@ fn main() {
 fn play<M, B, F>(mut board: B, eval: F)
 where
     M: Mov + Copy + Clone + Display + Send + 'static,
-    B: Board<M> + Display + Send + Clone + 'static,
-    F: Send + Clone + 'static + Fn(&B) -> i32,
+    B: Board<M>,
+    F: Send + Sync + Clone + 'static + Fn(&B) -> i32,
 {
-    let mut who_am_i = Player::PlayerTwo;
+    let mut who_am_i = Player::PlayerOne;
     let mut term = termdisplay::TermDisplay {
         prev_state: board.clone(),
         cur_state: board.clone(),
         move_history: vec![],
     };
+    let mut mm = ABMax::new(move |b| eval(b));
     loop {
         term.display_all();
         if let Some(winner) = board.get_winner() {
@@ -74,16 +88,12 @@ where
                 .join(", ")
         );
 
-        if false {
-            //board.get_player() == who_am_i {
-            // let mut mm = ABMax {
-            //     eval: |b|{eval(b)},
-            //     // alpha: EvalResult::FavorTwo(0),
-            //     // beta: EvalResult::FavorOne(0),
-            //  };
+        // if false {
+        if board.get_player() == who_am_i {
             print!("Thinking...");
             let _ = io::stdout().flush();
-            let (mov, evaluation) = ABMax::<M, B, _>::choose_best_iterdeep(&board, eval.clone());
+            // let (mov, evaluation) = mm.choose_best(&board, 5).unwrap();
+            let (mov, evaluation) = mm.choose_best_iterdeep(&board);
             println!(
                 "I'll play {}. {}",
                 mov,

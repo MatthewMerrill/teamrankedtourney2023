@@ -3,8 +3,8 @@ use std::{collections::HashMap, fmt::format};
 use actix_web::{get, middleware, web, App, Error as AWError, HttpResponse, HttpServer, Responder};
 use log::info;
 use newcular::{
+    bitboard::{BitBoard, BitBoardMove},
     board::Board,
-    /*  */bitboard::{BitBoard, BitBoardMove},
 };
 use serde::Serialize;
 use std::io;
@@ -14,7 +14,7 @@ struct GameSummary {
     valid_moves: Vec<String>,
     render: String,
     winner: Option<i8>,
-    representation: [[[u8;7];9];7]
+    representation: [[[u8; 7]; 9]; 7],
 }
 
 fn play_board_moves(moves: &Vec<String>) -> Result<BitBoard, usize> {

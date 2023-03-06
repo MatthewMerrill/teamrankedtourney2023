@@ -1,6 +1,7 @@
 // mod board;
 
 use std::fmt::Display;
+use std::hash::Hash;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MoveError {
@@ -10,13 +11,16 @@ pub enum MoveError {
     InvalidMove,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum PieceKind {
-    B, K, N, R, P,
+    B,
+    K,
+    N,
+    R,
+    P,
 }
 
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum Player {
     PlayerOne,
     PlayerTwo,
@@ -48,7 +52,7 @@ pub trait Mov: Display {
     fn get_from_dest(&self) -> ((u8, u8), (u8, u8));
 }
 
-pub trait Board<M: Mov> {
+pub trait Board<M: Mov>: Display + Clone + Send + Sync + Hash + Eq {
     fn get_piece(&self, row: u8, col: u8) -> Option<(Player, PieceKind)>;
     fn get_player(&self) -> Player;
     fn get_moves(&self) -> Vec<M>;
